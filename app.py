@@ -1,12 +1,12 @@
-from flask import Flask, request, render_template, redirect, flash
+from flask import Flask, request, render_template, redirect, flash, session
 from flask_debugtoolbar import DebugToolbarExtension
 from surveys import Survey, Question
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = "surveymachine"
-# debug = DebugToolbarExtension(app)
-# #disable redirect intercepts
-# app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
+debug = DebugToolbarExtension(app)
+#disable redirect intercepts
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 
 
 #Surveys
@@ -21,22 +21,25 @@ satisfaction_survey = Survey(
         Question("Are you likely to shop here again?"),
     ])
 
-# user session data
-responses = []
 
 @app.route('/')
 def begin_survey():
     '''Initialize survey, show home page.'''
-    responses = [];
     title = satisfaction_survey.title
     instructions = satisfaction_survey.instructions
     
     return render_template('home.html', title=title, instructions=instructions)
 
+@app.route('/set-response', methods=['POST'])
+def set_response_session():
+    session['responses'] = []
+    return redirect('/questions/0')
+
 @app.route('/questions/<int:question>')
 def show_next_question(question):
     '''Display current question'''
     current_question = question
+    responses = session['responses']
     if current_question != len(responses):
         flash('Do not skip ahead! Questions must be answered in order.', 'error')
         return redirect('/questions/{}'.format(len(responses)))
@@ -52,6 +55,8 @@ def show_next_question(question):
 def add_answer():
     '''Add answer to list of responses'''
     answer = request.form['answer']
+    responses = session['responses']
     responses.append(answer)
+    session['responses'] = responses
     next_question = len(responses)
     return redirect('/questions/{}'.format(next_question))
